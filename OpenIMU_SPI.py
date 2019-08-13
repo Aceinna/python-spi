@@ -13,7 +13,6 @@ OpenIMU SPI package version 0.0.1.
 	gnd         <==>      gnd
 '''
 
-
 import os
 import sys
 import spidev
