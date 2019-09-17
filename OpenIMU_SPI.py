@@ -8,8 +8,8 @@ OpenIMU SPI package version 0.0.1.
 	miso        <==>      miso
 	mosi        <==>      mosi
 	sck         <==>      sck
-	gpio(bcm17) <==>      cs
-    gpio(bcm4)  <==>      drdy
+	gpio(bcm4)  <==>      cs
+        gpio(bcm17) <==>      drdy
 	gnd         <==>      gnd
 '''
 
