@@ -1,6 +1,6 @@
 '''
 OpenIMU SPI package version 0.0.1.
--pip install spidev3.4, 
+-pip install spidev3.4,
 -read package through SPI interface, OpenIMU330BI test on Pi3 board(Raspbian OS,Raspberry 3B+).
 -Spi slave: OpenIMU 330 EVK
 -Pins connection:
@@ -44,7 +44,7 @@ class SpiOpenIMU:
 
     def spidev_setting(self):
         bus = 0    #supporyed values:0,1
-        device = 0   #supported values:0,1   default: 0
+        device = 1   #supported values:0,1   default: 0
         spi.open(bus,device)    #connect to the device. /dev/spidev<bus>.<device>
         spi.max_speed_hz = 1000000
         spi.mode = 0b11
@@ -67,36 +67,72 @@ class SpiOpenIMU:
         msb = struct.pack('B',msb)
         return struct.unpack('h',msb+lsb)[0]
 
-if __name__ == "__main__":
-    openimu_spi = SpiOpenIMU()
-    openimu_spi.gpio_setting()
-    openimu_spi.spidev_setting()
-    openimu_spi.check_settings()
+    def output_data_burst(self):
+        # polling mode reading spi interface, with drdy pin detection
+        try:
+            while True:
+                time.sleep(0.1)
+                GPIO.output(cs_channel,GPIO.HIGH)
+                if GPIO.event_detected(interrupt_channel):
+                    time.sleep(0.1)
+                    GPIO.output(cs_channel,GPIO.LOW)
+                    # xfer2([value],speed_hz,delay_usec_cs), SPI bi-direction data transfer.
+                    # default 8 bits mode, if speed_hz set to zero means the maximun supported SPI clock.
+                    # delay_usec_cs is the cs hold delay
+                    resp = spi.xfer2([openimu_spi.burst_cmd_std,0x00,0x00,0x00,0x00,0x00,0x00,
+                            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00],0,10)
+                    GPIO.output(cs_channel,GPIO.HIGH)
+                    #unit:degree per second
+                    x_rate = openimu_spi.combine_reg(resp[4],resp[5])/200
+                    y_rate = openimu_spi.combine_reg(resp[6],resp[7])/200
+                    z_rate = openimu_spi.combine_reg(resp[8],resp[8])/200
+                    #unit:mg
+                    x_acc = openimu_spi.combine_reg(resp[10],resp[11])/4
+                    y_acc = openimu_spi.combine_reg(resp[12],resp[13])/4
+                    z_acc = openimu_spi.combine_reg(resp[14],resp[15])/4
+                    print('g/a',x_rate,y_rate,z_rate,x_acc,y_acc,z_acc)
+        except KeyboardInterrupt:
+            GPIO.cleanup()
+            spi.close()
 
-    # polling mode reading spi interface, with drdy pin detection
-    try:
-        while True:
+    def magnetic_align(self):
+        try:
             time.sleep(0.1)
             GPIO.output(cs_channel,GPIO.HIGH)
             if GPIO.event_detected(interrupt_channel):
                 time.sleep(0.1)
                 GPIO.output(cs_channel,GPIO.LOW)
-                # xfer2([value],speed_hz,delay_usec_cs), SPI bi-direction data transfer.
-                # default 8 bits mode, if speed_hz set to zero means the maximun supported SPI clock.
-                # delay_usec_cs is the cs hold delay
-                resp = spi.xfer2([openimu_spi.burst_cmd_std,0x00,0x00,0x00,0x00,0x00,0x00,
-                        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00],0,10)
+                # start mag align
+                # change msb of 0x50 to do write operation
+                spi.xfer2([0xd0,0x01])
                 GPIO.output(cs_channel,GPIO.HIGH)
-                #unit:degree per second
-                x_rate = openimu_spi.combine_reg(resp[4],resp[5])/200
-                y_rate = openimu_spi.combine_reg(resp[6],resp[7])/200
-                z_rate = openimu_spi.combine_reg(resp[8],resp[8])/200
-                #unit:mg
-                x_acc = openimu_spi.combine_reg(resp[10],resp[11])/4
-                y_acc = openimu_spi.combine_reg(resp[12],resp[13])/4
-                z_acc = openimu_spi.combine_reg(resp[14],resp[15])/4
-                print('g/a',x_rate,y_rate,z_rate,x_acc,y_acc,z_acc)
+                time.sleep(0.02)
+                GPIO.output(cs_channel,GPIO.LOW)
+                resp = spi.xfer2([0x50,0x00,0x00,0x00,0x00,0x00])
+                print(resp)
+                while resp[4] == 12 :
+                    GPIO.output(cs_channel,GPIO.HIGH)
+                    time.sleep(0.02)
+                    GPIO.output(cs_channel,GPIO.LOW)
+                    resp = spi.xfer2([0x50,0x00,0x00,0x00,0x00,0x00])
+                    print(resp)
+                print('out of the loop')
+                if resp[4] == 13:
+                    resp = spi.xfer2([0xd0,0x05])
 
-    except KeyboardInterrupt:
-        GPIO.cleanup()
-        spi.close()
+                GPIO.output(cs_channel,GPIO.HIGH)
+                print ('mag algin completed')
+
+        except KeyboardInterrupt:
+            GPIO.cleanup()
+            spi.close()
+
+
+
+if __name__ == "__main__":
+    openimu_spi = SpiOpenIMU()
+    openimu_spi.gpio_setting()
+    openimu_spi.spidev_setting()
+    openimu_spi.check_settings()
+    # openimu_spi.output_data_burst()
+    openimu_spi.magnetic_align()
