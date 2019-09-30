@@ -105,20 +105,52 @@ class SpiOpenIMU:
                 # start mag align
                 # change msb of 0x50 to do write operation
                 spi.xfer2([0xd0,0x01])
+                # cycle through CS high low before read operations
                 GPIO.output(cs_channel,GPIO.HIGH)
                 time.sleep(0.02)
                 GPIO.output(cs_channel,GPIO.LOW)
+                # read value for the unit
                 resp = spi.xfer2([0x50,0x00,0x00,0x00,0x00,0x00])
-                print(resp)
                 while resp[4] == 12 :
                     GPIO.output(cs_channel,GPIO.HIGH)
                     time.sleep(0.02)
                     GPIO.output(cs_channel,GPIO.LOW)
                     resp = spi.xfer2([0x50,0x00,0x00,0x00,0x00,0x00])
-                    print(resp)
-                print('out of the loop')
+                    print('Mag align in progress')
                 if resp[4] == 13:
-                    resp = spi.xfer2([0xd0,0x05])
+                    # Status when mag align is complete
+                    GPIO.output(cs_channel,GPIO.HIGH)
+                    time.sleep(0.02)
+                    GPIO.output(cs_channel,GPIO.LOW)
+                    # get mag parameter's values from registers.
+                    hardIron_x = spi.xfer2([0x48,0x00,0x00,0x00,0x00,0x00,0x00])
+                    GPIO.output(cs_channel,GPIO.HIGH)
+                    time.sleep(0.02)
+                    GPIO.output(cs_channel,GPIO.LOW)
+                    hardIron_y = spi.xfer2([0x4A,0x00,0x00,0x00,0x00,0x00,0x00,0x00])
+                    GPIO.output(cs_channel,GPIO.HIGH)
+                    time.sleep(0.02)
+                    GPIO.output(cs_channel,GPIO.LOW)
+                    softIron_angle = spi.xfer2([0x4E,0x00,0x00,0x00,0x00,0x00,0x00])
+                    GPIO.output(cs_channel,GPIO.HIGH)
+                    time.sleep(0.02)
+                    GPIO.output(cs_channel,GPIO.LOW)
+                    softIron_ratio = spi.xfer2([0x4C,0x00,0x00,0x00,0x00,0x00,0x00])
+                    GPIO.output(cs_channel,GPIO.HIGH)
+                    time.sleep(0.02)
+                    GPIO.output(cs_channel,GPIO.LOW)
+
+                    print('Hard Iron X:' + str((openimu_spi.combine_reg(hardIron_x[2],hardIron_x[3]) * 20) / 65536 ))
+                    print('Hard Iron Y:' + str ((openimu_spi.combine_reg(hardIron_y[2],hardIron_y[3]) * 20) / 65536 ))
+                    print('Soft Iron Angle:' + str ((openimu_spi.combine_reg(softIron_angle[2],softIron_angle[3]) * 3.14) / 32767 ))
+                    print('Soft Iron Ratio:' + str ((openimu_spi.combine_reg(softIron_ratio[2],softIron_ratio[3]) * 2) / 65536 ))
+
+                    data = input('Accept values?y/n: ')
+                    if data == 'y':
+                        resp = spi.xfer2([0xd0,0x05])
+                        print('values saved')
+                    else:
+                        return
 
                 GPIO.output(cs_channel,GPIO.HIGH)
                 print ('mag algin completed')
@@ -134,5 +166,6 @@ if __name__ == "__main__":
     openimu_spi.gpio_setting()
     openimu_spi.spidev_setting()
     openimu_spi.check_settings()
+    # Toggel between mag algin and burst mode
     # openimu_spi.output_data_burst()
     openimu_spi.magnetic_align()
