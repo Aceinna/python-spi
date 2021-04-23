@@ -1,0 +1,23 @@
+{
+    "name":"parameters for SPI devices",
+    "version":"4.1.2",
+    "type":"OPEN300ZI",
+
+    "test_items":[],
+    "start_idx": -1, 
+    "debug_mode":"FALSE", 
+
+
+    "reg_name":[
+        "X_Rate", "Y_Rate", "Z_Rate", "X_Accel", "Y_Accel", "Z_Accel", "RATE_TEMP", "BOARD_TEMP", "DRDY_RATE", "ACCEL_LPF", "ACCEL_SCALE_FACTOR", "RATE_SCALE_FACTOR", 
+        "SN_1", "SN_2", "SN_3", "PRODUCT_ID", "MASTER_STATUS", "HW_STATUS", "SW_STATUS", "ACCEL_RANGE/RATE_RANGE", 
+        "ORIENTATION_MSB/ORIENTATION_LSB", "SAVE_CONFIG", "RATE_LPF", "HW_VERSION/SW_VERSION"
+        ],
+    "reg_id_str":[
+        "0x04", "0x06", "0x08", "0x0A", "0x0C", "0x0E", "0x16", "0x18", "0x37", "0x38", "0x46", "0x47", 
+        "0x52", "0x54", "0x58", "0x56", "0x5A", "0x5C", "0x5E", "0x70", "0x74", "0x76", "0x78", "0x7E"
+        ] 
+    }
+     
+
+    

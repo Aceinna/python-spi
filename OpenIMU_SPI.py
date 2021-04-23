@@ -1,5 +1,5 @@
 '''
-OpenIMU SPI package version 0.2.0.
+OpenIMU SPI package version 1.0
 -pip install spidev3.4, 
 -read package through SPI interface, OpenIMU330BI test on Pi3 board(Raspbian OS,Raspberry 3B+).
 -Spi slave: OpenIMU 330 EVK
@@ -12,6 +12,7 @@ OpenIMU SPI package version 0.2.0.
     gpio(bcm17) <==>      drdy red line
 	gnd         <==>      gnd
 @cek from Aceinna 2019.11.4
+SPI communication operation
 '''
 
 import os
@@ -25,9 +26,10 @@ except RuntimeError:
     print("Error import RPi.GPIO!")
 
 class SpiOpenIMU:
-    def __init__(self, target_module = "300", fw='0.0', cs_pin = 4, interrupt_pin = 17, drdy_status = False):
+    def __init__(self, target_module = "300ZI", fw='0.0', cs_pin = 4, interrupt_pin = 17, drdy_status = False):
         '''
         pin number use the BCM code
+        module: 300ZI, 330BI, 330BA, 381,383
         '''        
 
         self.spi = spidev.SpiDev()
@@ -50,14 +52,14 @@ class SpiOpenIMU:
         if self.drdy:
             GPIO.setup(self.interrupt_channel,GPIO.IN) # channel used as IMU data ready detection
             time.sleep(0.4)
-            GPIO.add_event_detect(self.interrupt_channel,GPIO.FALLING)            
+            GPIO.add_event_detect(self.interrupt_channel,GPIO.FALLING)
         return True
 
     def single_read(self, target_register):
-        if self.drdy and self.module != "300":
-            while not GPIO.event_detected(self.interrupt_channel):                
-                pass 
-        if self.module == "381":
+        # if self.drdy and '300ZI' not in self.module:
+        #     while not GPIO.event_detected(self.interrupt_channel):                
+        #         pass 
+        if '381' in self.module:
             GPIO.output(self.cs_channel,GPIO.LOW) 
             self.spi.xfer2([target_register,0x00],900000,10)  #return data of 0000
             GPIO.output(self.cs_channel,GPIO.HIGH) 
@@ -73,9 +75,9 @@ class SpiOpenIMU:
             return self.combine_reg(resp_single[2],resp_single[3])
         
     def single_write(self, target_register, target_data):
-        if self.drdy and self.module != "300":
-            while not GPIO.event_detected(self.interrupt_channel):                
-                pass    
+        # if self.drdy and '300ZI' not in self.module:
+        #     while not GPIO.event_detected(self.interrupt_channel):                
+        #         pass    
         GPIO.output(self.cs_channel,GPIO.LOW)           
         self.spi.xfer2([target_register | 0x80, target_data],900000,10)  #write data, such as 0xF010, target address is 0x70, and data input is 0x10
         GPIO.output(self.cs_channel,GPIO.HIGH)
@@ -83,10 +85,10 @@ class SpiOpenIMU:
     
     def burst_read(self, first_register, subregister_num):   
         rate, acc, deg, tmstp = [], [], [], []
-        if self.drdy and self.module != "300":  # 300 no drdy now, so only not 300 will go next
-            while not GPIO.event_detected(self.interrupt_channel):                
-                pass 
-        if self.module == "381":
+        # if self.drdy and '300ZI' not in self.module:  # 300 no drdy now, so only not 300 will go next, DRDY is available now.
+        #     while not GPIO.event_detected(self.interrupt_channel):                
+        #         pass 
+        if '381' in self.module:
             GPIO.output(self.cs_channel,GPIO.LOW)
             resp = self.spi.xfer2([first_register,0x00],900000,10)
             GPIO.output(self.cs_channel,GPIO.HIGH)
@@ -122,12 +124,12 @@ class SpiOpenIMU:
             acc.append(self.combine_reg(resp[12],resp[13])/4000)
             acc.append(self.combine_reg(resp[14],resp[15])/4000)     
             #unit:deg
-            if self.module == "330" and first_register == 0x3F:
+            if ('330BI' in self.module) and first_register == 0x3F:
                 deg.append(self.combine_reg(resp[18],resp[19]) * 360/65536)
                 deg.append(self.combine_reg(resp[20],resp[21]) * 360/65536)
                 deg.append(self.combine_reg(resp[22],resp[23]) * 360/65536)
                 return rate, acc, deg   
-            if self.module == "330BA" and first_register == 0x3F:
+            if ('330BA' in self.module) and first_register == 0x3F:
                 tmstp.append(self.combine_reg(resp[18],resp[19]) * 1)
                 tmstp.append(self.combine_reg(resp[20],resp[21]) * 1)
                 return rate, acc, tmstp         
@@ -289,11 +291,3 @@ if __name__ == "__main__":
     # 0x56 OPEN300 ID: 0x30(48) 0x00(0) 
     # 0x56 OPEN330 ID: 0x33(48) 0x00(0)
     # 0x56 IMU381 ID:  0X38(56) 0x10(16)  
-
-
-<<<<<<< HEAD
-=======
-    except KeyboardInterrupt:
-        GPIO.cleanup()
-        spi.close()
->>>>>>> e1f00869bd4bbc361b7c7feebb8df015eb43b909
